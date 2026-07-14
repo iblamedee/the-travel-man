@@ -16,6 +16,29 @@ tavily_client = AsyncTavilyClient(
 #     return a + b
 
 
+@tool(description="Helps in Mathmatical and numerical calculation, in short a agent calculator")
+def calculator(a:float , b: float, operation:str):
+    """Perform basic mathmatical calculation"""
+
+
+    op = operation.lower()
+
+    if op in ["add", "addition", "+"]:
+        result = a + b
+    elif op in ["sub", "subtraction", "-"]:
+        result = a - b
+    elif op in ["multi", "multiply", "multiplication", "*"]:
+        result = a * b
+
+    elif op in ["divide", "division", "/", "div"]:
+        result = a / b
+
+    else:
+        return f"Error: Unknown operation '{operation}'. Please use 'add', 'subtract', 'multiply', or 'divide'."
+    
+    return f"the result of {a} {operation} {b} is {result}"
+
+
 
 
 @tool(description="web search tool")

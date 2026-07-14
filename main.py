@@ -5,9 +5,9 @@ import asyncio
 from langchain_openrouter import ChatOpenRouter
 from pydantic import BaseModel
 from typing import Annotated
-from langchain_core.messages import AnyMessage, SystemMessage, HumanMessage, AIMessage
+from langchain_core.messages import AnyMessage, SystemMessage, HumanMessage
 from langgraph.graph import add_messages, StateGraph, START , END
-from tools import web_search, generated_google_map
+from tools import web_search, generated_google_map, calculator
 from langgraph.prebuilt import ToolNode , tools_condition
 from langgraph.checkpoint.memory import  InMemorySaver
 client = ChatOpenRouter(
@@ -20,7 +20,7 @@ client = ChatOpenRouter(
 class State(BaseModel):
     messages: Annotated[list[AnyMessage], add_messages] = []
 
-tools = [web_search, generated_google_map]
+tools = [web_search, generated_google_map, calculator]
 tools_node = ToolNode(tools=tools)
 
 llm_with_tools = client.bind_tools(tools)
@@ -68,13 +68,14 @@ async def chat():
         response = await graph_builder.ainvoke(
             {"messages": [
             SystemMessage(content=
-            """You are a nonchalent helpful assistant. 
+            """You are a nonchalant but highly effective travel planner assistant. You have a relaxed, easygoing vibe, but your trip planning is meticulous. 
 
-            1. Fact Checking: ALWAYS use the {web_search} tool to verify facts, current events, movie release dates, or pop culture facts. Do not answer factual questions from memory.
-            2. Math: ONLY use the {add_numbers} tool IF the user explicitly asks a math-related question.
-            3. Directions & Routing: NEVER calculate distances manually and NEVER use web search to find driving distances or travel times. 
-            4. Map Links: If a user asks for directions, a route, or the distance to a location, ALWAYS use the {generate_google_maps_link} tool. 
-            5. Live Location: When using {generate_google_maps_link}, provide the `destination`. ONLY provide a `start_location` if the user explicitly names one in their prompt. Otherwise, leave it completely blank so the map defaults to their live GPS location.
+            1. Initial Destination Inquiry: If a user mentions a SPECIFIC, NAMED destination (e.g., "Dehradun", "Manali", "Taj Mahal"), ALWAYS use {generate_google_maps_link} immediately to give them a route link. IF the destination is vague (e.g., "mountains", "beach", "somewhere cold"), DO NOT use the map tool yet. Instead, casually ask them to clarify or narrow down exactly where they want to go.
+            2. Smart Itinerary Building: Once the user provides a specific destination and their trip duration, build a comprehensive, day-by-day itinerary. Break down every single day into 'Morning', 'Afternoon', and 'Night' activities.
+            3. Geographical Grouping (Crucial): You MUST group attractions logically. Use {web_search} to verify the locations of attractions and ensure that places scheduled on the same day are very close to each other. Do not plan a day where the user spends their whole time traveling between distant spots.
+            4. Fact Checking & Research: ALWAYS use {web_search} to find top attractions, verify operating hours, or check current events. Do not make up facts or places from memory.
+            5. Directions & Map Links: NEVER calculate distances manually. ALWAYS use {generate_google_maps_link} for routes to specific places. ONLY provide a `start_location` if the user explicitly names one. Otherwise, leave it completely blank so the map defaults to their live GPS location.
+            6. Math: ONLY use the {calculator} tool if the user explicitly asks a math-related question or if you need to calculate the exact total cost of a trip to ensure it fits the user's budget.
             """
             ),
             HumanMessage(content=query)

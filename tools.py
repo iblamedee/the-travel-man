@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 import os
 load_dotenv(override=True)
 from typing import Optional
-
+import requests
 import urllib.parse
 
 tavily_client = AsyncTavilyClient(
@@ -108,3 +108,53 @@ def generated_google_map(destination:str, start_location:Optional[str] = None):
 
 
     return f"Here are your  directions on Google Maps: {map_url}"
+
+
+
+@tool(description= "list hotel and compare the prices of the hotels")
+def search_hotel(destination:str, check_in:str, check_out:str, adult: int, children:int):
+    """
+    Returns a Google Hotels search link for the requested destination.
+    """
+
+    api_key = os.getenv("SERAPI_API_KEY")
+
+
+    params = {
+        "engine":"google_hotels",
+        "q":destination,
+        "check_in_date": check_in,
+        "check_out_date": check_out,
+        "adults": adult,
+        "children": children,
+        "currency": "INR",
+        "api_key": api_key
+    }
+
+
+    try:
+        response= requests.get("https://serpapi.com/search", params=params)
+        data = response.json()
+
+
+        result = []
+        for hotel in data.get("properties", [])[:3]:
+            name = hotel.get("name")
+
+
+            hotel_info = f"🏨 **{name}**"
+            price = hotel.get("rate_per_night", {}).get("lowest")
+            if name and price:
+                result.append(f"-{name}:{price}/per night")
+
+        if result:
+            return "Here are the top hotels i found:\n" + "\n".join(result)
+        return "No prices found for those dates."
+    
+    except Exception as e:
+        return "failed to fatch hotel prices"
+
+
+
+
+

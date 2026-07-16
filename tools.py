@@ -143,16 +143,24 @@ def search_hotel(destination:str, check_in:str, check_out:str, adult: int, child
 
 
             hotel_info = f"🏨 **{name}**"
-            price = hotel.get("rate_per_night", {}).get("lowest")
-            if name and price:
-                result.append(f"-{name}:{price}/per night")
+            if "price" in hotel:
+                for option in hotel["price"][:3]:
+                    site_name = option.get("source")
+                    site_price = option.get("price")
+                    hotel_info += f"\n - {site_name}: {site_price}"
 
+            else:
+                price = hotel.get("rate_per_night", {}).get("lowest")
+                if price:
+                    hotel_info += f"\n - Lowest price found: ₹{price}/per night"
+
+            result.append(hotel_info)
         if result:
             return "Here are the top hotels i found:\n" + "\n".join(result)
         return "No prices found for those dates."
     
     except Exception as e:
-        return "failed to fatch hotel prices"
+        return f"failed to fatch hotel prices : {str(e)}"
 
 
 

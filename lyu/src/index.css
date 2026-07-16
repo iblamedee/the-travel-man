@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Sora", sans-serif;
+  
+  --color-brand-primary: #00dbe9;
+  --color-brand-secondary: #ff24e4;
+  --color-brand-tertiary: #d2bbff;
+  --color-bg-dark: #111125;
+  --color-bg-darker: #0c0c1f;
+  --color-surface-container: #1e1e31;
+  --color-on-surface: #e2e0fb;
+  --color-on-surface-variant: #b9cacb;
+}
+
+/* Custom styles for Hyper-Spatial Glassmorphism */
+@layer utilities {
+  .glass-panel {
+    background: rgba(30, 30, 49, 0.45);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+  }
+
+  .glass-card-hover {
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.2);
+  }
+  
+  .glass-card-hover:hover {
+    transform: translateY(-6px) scale(1.015);
+    box-shadow: 0 20px 40px -10px rgba(0, 219, 233, 0.25);
+    border-color: rgba(0, 219, 233, 0.35);
+  }
+
+  .tactile-btn {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 2px 4px rgba(0, 0, 0, 0.4);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .tactile-btn:active {
+    transform: translateY(1.5px);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 1px 1px rgba(0, 0, 0, 0.4);
+  }
+
+  .ambient-void {
+    background: radial-gradient(circle at 15% 25%, rgba(0, 219, 233, 0.09), transparent 40%),
+                radial-gradient(circle at 85% 75%, rgba(255, 36, 228, 0.07), transparent 40%),
+                #111125;
+  }
+
+  /* Glow effects */
+  .glow-cyan {
+    box-shadow: 0 0 20px rgba(0, 219, 233, 0.3);
+  }
+  .glow-pink {
+    box-shadow: 0 0 20px rgba(255, 36, 228, 0.25);
+  }
+
+  /* Navigation hiding scrollbar */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}

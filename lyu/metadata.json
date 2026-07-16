@@ -1,0 +1,6 @@
+{
+  "name": "Lyu",
+  "description": "An intelligent, glassmorphic AI Travel Partner that designs and creates custom futuristic itineraries and chats with travelers.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

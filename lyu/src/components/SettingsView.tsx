@@ -9,7 +9,7 @@ interface SettingsViewProps {
 
 export default function SettingsView({ preferences, onUpdatePreferences }: SettingsViewProps) {
   const [homeAirport, setHomeAirport] = useState(preferences.homeAirport);
-  const [budget, setBudget] = useState<"budget" | "moderate" | "luxury">(preferences.budget);
+  const [budget, setBudget] = useState(preferences.budget);
   const [style, setStyle] = useState<"adventure" | "cyberpunk" | "nature" | "cultural" | "relaxed">(preferences.style);
   const [interests, setInterests] = useState<string[]>(preferences.interests);
 
@@ -85,16 +85,15 @@ export default function SettingsView({ preferences, onUpdatePreferences }: Setti
         {/* Budget and Style */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
-            <label className="font-display text-xs font-bold text-on-surface">Default Budget Level</label>
-            <select
-              className="w-full px-4 py-2.5 bg-black/30 border border-white/10 rounded-xl text-on-surface text-sm focus:border-brand-primary/40 focus:outline-none"
+            <label className="font-display text-xs font-bold text-on-surface">Default Budget (approx. INR)</label>
+            <input
+              className="w-full px-4 py-2.5 bg-black/30 border border-white/10 rounded-xl text-on-surface text-sm focus:border-brand-primary/40 focus:ring-1 focus:ring-brand-primary/20 focus:outline-none"
+              type="text"
               value={budget}
-              onChange={(e) => setBudget(e.target.value as any)}
-            >
-              <option value="budget" className="bg-bg-dark">Budget (Low Cost)</option>
-              <option value="moderate" className="bg-bg-dark">Moderate (Standard)</option>
-              <option value="luxury" className="bg-bg-dark">Luxury (High Tier)</option>
-            </select>
+              onChange={(e) => setBudget(e.target.value)}
+              placeholder="E.g., 50,000"
+              required
+            />
           </div>
 
           <div className="space-y-1.5">

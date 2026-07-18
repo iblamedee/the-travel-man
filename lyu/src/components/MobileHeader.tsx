@@ -1,6 +1,11 @@
-import { Bell, Wallet } from "lucide-react";
+import { Bell, Wallet, LogOut } from "lucide-react";
 
-export default function MobileHeader() {
+interface MobileHeaderProps {
+  username: string;
+  onLogout: () => void;
+}
+
+export default function MobileHeader({ username, onLogout }: MobileHeaderProps) {
   return (
     <header className="md:hidden flex justify-between items-center px-6 w-full sticky top-0 z-40 bg-[#1e1e31]/85 backdrop-blur-md h-16 border-b border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.15)]">
       <h1 className="font-display text-[22px] font-extrabold bg-gradient-to-r from-brand-primary to-brand-secondary bg-clip-text text-transparent tracking-tighter">
@@ -14,11 +19,16 @@ export default function MobileHeader() {
         <button className="text-on-surface-variant hover:text-brand-primary transition-colors cursor-pointer">
           <Wallet className="w-5 h-5" />
         </button>
-        <img
-          alt="Mobile User Avatar"
-          className="w-8 h-8 rounded-full object-cover border border-white/20"
-          src="https://lh3.googleusercontent.com/aida-public/AB6AXuDInlTjzX3WU4bGFXI5uDwTL0bjElJcX1Mdq-iE6LiKPu2AaxAv0loYi2lg3ogBHe7MywXDvzuE6HSTqwwc0_J34SEj5V0_1I5O47A7xDj89o6MDNhLQiZOzRQnmeKizHDKttmg-kZ0Ns6GBApdBCkVCWTML650zEpULg0bqI51_0l_m9f4_QqP0ADxAd5yTjP3L0zdieGTB1gz1-8xaK0wD-rVGCFOiJJnrqltpQ6M3puPHh3ut7raGE7cJO7Rh2gPeTwee6sNZa0L"
-        />
+        <div className="w-8 h-8 rounded-full bg-brand-primary/10 border border-brand-primary/30 flex items-center justify-center text-brand-primary font-display font-bold text-xs uppercase shrink-0">
+          {username ? username.slice(0, 2) : "TR"}
+        </div>
+        <button
+          onClick={onLogout}
+          title="Log Out"
+          className="text-on-surface-variant/60 hover:text-brand-secondary p-1 rounded-lg transition-colors cursor-pointer"
+        >
+          <LogOut className="w-4 h-4" />
+        </button>
       </div>
     </header>
   );

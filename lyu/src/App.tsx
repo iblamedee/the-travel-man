@@ -9,11 +9,29 @@ import FavoritesView from "./components/FavoritesView";
 import SettingsView from "./components/SettingsView";
 import ExploreModal from "./components/ExploreModal";
 import PlanTripModal from "./components/PlanTripModal";
+import LoginView from "./components/LoginView";
 
 import { TravelPreferences, Itinerary } from "./types";
 import { prebakedItineraries } from "./destinationsData";
 
 export default function App() {
+  const [token, setToken] = useState<string | null>(localStorage.getItem("lyu_token"));
+  const [username, setUsername] = useState<string | null>(localStorage.getItem("lyu_username"));
+
+  const handleLogin = (newToken: string, newUsername: string) => {
+    localStorage.setItem("lyu_token", newToken);
+    localStorage.setItem("lyu_username", newUsername);
+    setToken(newToken);
+    setUsername(newUsername);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("lyu_token");
+    localStorage.removeItem("lyu_username");
+    setToken(null);
+    setUsername(null);
+  };
+
   const [activeTab, setActiveTab] = useState("explore");
   const [, startTransition] = useTransition();
 
@@ -34,10 +52,10 @@ export default function App() {
 
   // Travel Preferences State
   const [preferences, setPreferences] = useState<TravelPreferences>({
-    homeAirport: "SFO - San Francisco",
-    budget: "moderate",
-    style: "cyberpunk",
-    interests: ["Cyberpunk Nights", "Traditional Temples", "Underground Culinary"]
+    homeAirport: "DEL - New Delhi, India",
+    budget: "50,000 INR",
+    style: "cultural",
+    interests: ["Traditional Temples", "Underground Culinary", "Bioluminescent Forests"]
   });
 
   // Modal / Detailed view toggles
@@ -79,6 +97,10 @@ export default function App() {
     }
   };
 
+  if (!token) {
+    return <LoginView onLogin={handleLogin} />;
+  }
+
   return (
     <div className="min-h-screen flex flex-col md:flex-row relative ambient-void">
       {/* Sidebar for Desktop */}
@@ -87,10 +109,12 @@ export default function App() {
         setActiveTab={handleSetActiveTab}
         onPlanNewTrip={() => setIsPlanTripOpen(true)}
         preferences={preferences}
+        username={username || ""}
+        onLogout={handleLogout}
       />
 
       {/* Top Bar for Mobile */}
-      <MobileHeader />
+      <MobileHeader username={username || ""} onLogout={handleLogout} />
 
       {/* Main Content Area */}
       <main className="flex-1 w-full md:pl-64 flex flex-col pb-24 md:pb-6 min-h-screen relative z-10">

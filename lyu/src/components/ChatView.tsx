@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Send, Bot, User, Sparkles, AlertCircle, Loader } from "lucide-react";
+import { Send, Bot, User, Sparkles, AlertCircle, Loader, Map } from "lucide-react";
 import { ChatMessage, TravelPreferences } from "../types";
 
 function parseMarkdown(text: string): React.ReactNode[] {
@@ -134,6 +134,102 @@ function parseMarkdown(text: string): React.ReactNode[] {
   return elements;
 }
 
+function parseInlineContent(text: string): React.ReactNode[] {
+  // Pattern to match markdown links: [Label](URL)
+  const mdLinkRegex = /(\[[^\]]+\]\(https?:\/\/[^\s)]+\))/g;
+  const parts = text.split(mdLinkRegex);
+
+  const checkIsMapLink = (url: string) => {
+    return url.includes("google.com/maps") || url.includes("maps.google.com") || url.includes("maps.app.goo.gl");
+  };
+
+  return parts.map((part, partIdx) => {
+    // If it's a markdown link [Label](URL)
+    const match = part.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/);
+    if (match) {
+      const label = match[1];
+      const url = match[2];
+      const isMap = checkIsMapLink(url);
+      if (isMap) {
+        return (
+          <a
+            key={`md-link-${partIdx}`}
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-primary/10 border border-brand-primary/30 text-brand-primary hover:bg-brand-primary/20 hover:text-[#00f0ff] hover:shadow-[0_0_12px_rgba(0,219,233,0.25)] transition-all duration-300 font-display font-bold text-xs uppercase tracking-wide my-1 cursor-pointer"
+          >
+            <Map className="w-3.5 h-3.5 shrink-0 text-[#00dbe9]" />
+            <span>{label}</span>
+          </a>
+        );
+      }
+      return (
+        <a
+          key={`md-link-${partIdx}`}
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-brand-primary underline hover:text-[#00f0ff] font-medium break-all"
+        >
+          {label}
+        </a>
+      );
+    }
+
+    // Otherwise, parse plain URLs
+    const urlRegex = /(https?:\/\/[^\s$.?#].[^\s]*)/g;
+    const urlParts = part.split(urlRegex);
+
+    return urlParts.map((urlPart, urlIdx) => {
+      // Clean trailing punctuation commonly appended to URLs
+      const isUrl = urlPart.match(/^https?:\/\/[^\s]+/);
+      if (isUrl) {
+        let cleanUrl = urlPart;
+        let trailing = "";
+        const trailingPunct = /([.,?!;)]+)$/.exec(urlPart);
+        if (trailingPunct) {
+          cleanUrl = urlPart.slice(0, -trailingPunct[1].length);
+          trailing = trailingPunct[1];
+        }
+
+        const isMap = checkIsMapLink(cleanUrl);
+        if (isMap) {
+          return (
+            <React.Fragment key={`url-${urlIdx}`}>
+              <a
+                href={cleanUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-primary/10 border border-brand-primary/30 text-brand-primary hover:bg-brand-primary/20 hover:text-[#00f0ff] hover:shadow-[0_0_12px_rgba(0,219,233,0.25)] transition-all duration-300 font-display font-bold text-xs uppercase tracking-wide my-1 cursor-pointer"
+              >
+                <Map className="w-3.5 h-3.5 shrink-0 text-[#00dbe9]" />
+                <span>Open Directions Map</span>
+              </a>
+              {trailing}
+            </React.Fragment>
+          );
+        }
+
+        return (
+          <React.Fragment key={`url-${urlIdx}`}>
+            <a
+              href={cleanUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-brand-primary underline hover:text-[#00f0ff] font-medium break-all"
+            >
+              {cleanUrl}
+            </a>
+            {trailing}
+          </React.Fragment>
+        );
+      }
+      return urlPart;
+    });
+  });
+}
+
 function parseInline(text: string): React.ReactNode[] {
   // First, parse bold text
   const boldParts = text.split(/(\*\*.*?\*\*)/g);
@@ -147,26 +243,7 @@ function parseInline(text: string): React.ReactNode[] {
       isBold = true;
     }
     
-    // Parse URLs in currentContent
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const urlParts = currentContent.split(urlRegex);
-    
-    const renderedParts = urlParts.map((urlPart: string, urlIdx: number) => {
-      if (urlPart.match(urlRegex)) {
-        return (
-          <a
-            key={urlIdx}
-            href={urlPart}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-brand-primary underline hover:text-[#00f0ff] font-medium break-all"
-          >
-            {urlPart}
-          </a>
-        );
-      }
-      return urlPart;
-    });
+    const renderedParts = parseInlineContent(currentContent);
     
     if (isBold) {
       return (
@@ -179,6 +256,7 @@ function parseInline(text: string): React.ReactNode[] {
     return <React.Fragment key={index}>{renderedParts}</React.Fragment>;
   });
 }
+
 
 interface ChatViewProps {
   preferences: TravelPreferences;
@@ -232,9 +310,13 @@ export default function ChatView({ preferences }: ChatViewProps) {
         text: msg.text
       }));
 
+      const token = localStorage.getItem("lyu_token");
       const res = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({
           messages: history,
           preferences: preferences

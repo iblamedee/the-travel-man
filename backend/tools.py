@@ -11,10 +11,6 @@ tavily_client = AsyncTavilyClient(
     api_key=os.getenv("TAVILY_API_KEY")
     )
 
-# @tool(description="A tool that adds numbers.")
-# def add_numbers(a: int, b: int):
-#     return a + b
-
 
 @tool(description="Helps in Mathmatical and numerical calculation, in short a agent calculator")
 def calculator(a:float , b: float, operation:str):
@@ -25,12 +21,14 @@ def calculator(a:float , b: float, operation:str):
 
     if op in ["add", "addition", "+"]:
         result = a + b
-    elif op in ["sub", "subtraction", "-"]:
+    elif op in ["sub", "subtraction", "subtract", "-"]:
         result = a - b
     elif op in ["multi", "multiply", "multiplication", "*"]:
         result = a * b
 
     elif op in ["divide", "division", "/", "div"]:
+        if b == 0:
+            return "Error: Division by zero is not mathematically defined."
         result = a / b
 
     else:
@@ -46,48 +44,6 @@ async def web_search(message:str):
     """Search the web for information."""
     web_response = await tavily_client.search(message, max_results=3) 
     return str(web_response)
-
-
-
-# @tool(description="a tool for knowing distance")
-# async def distance_map(cordinates: str):
-#     """use the cordinates and tell the distance and time to reach there"""
-
-#     try:
-#         start_str, end_str = cordinates.split("|")
-#         start_lon, start_lat = float(start_str.split(",")[0], start_str.split(",")[1])
-#         end_lon, end_lat = float(end_str.split(",")[0], end_str.split(",")[0])
-#     except Exception as e:
-#         return "Error: invalid cordinates. please check your cordinates"
-    
-#     api_key = os.getenv("MAP_SERVER_API_KEY")
-#     if not api_key:
-#         return "api key not found , please add your api key "
-    
-
-#     url = "https://api.openrouteservice.org/v2/directions/driving-car"
-#     headers = {
-#         "Authorization": api_key,
-#         "Content-type": "application/json"
-#     }
-#     body = {
-#         "coordinates": [[start_lon, start_lat],[end_lon, end_lat]]
-#     }
-
-#     async with aiohttp.ClientSession() as session:
-#         async with session.post(url, headers, body) as response:
-#             if response.status==200:
-#                 data = await response.json()
-
-
-
-#                 summary = data["features"][0]["properties"]["summary"]
-#                 distance_km = summary["distance"] / 1000
-#                 time_hr = summary["duration"] / 3600
-
-#                 return f"Distance: {distance_km:2f}km and duration is {time_hr}hr"
-#             else:
-#                 return f"API error "
 
 
 
@@ -117,7 +73,7 @@ def search_hotel(destination:str, check_in:str, check_out:str, adult: int, child
     Returns a Google Hotels search link for the requested destination.
     """
 
-    api_key = os.getenv("SERAPI_API_KEY")
+    api_key = os.getenv("SERPAPI_API_KEY") or os.getenv("SERAPI_API_KEY")
 
 
     params = {
@@ -143,8 +99,8 @@ def search_hotel(destination:str, check_in:str, check_out:str, adult: int, child
 
 
             hotel_info = f"🏨 **{name}**"
-            if "price" in hotel:
-                for option in hotel["price"][:3]:
+            if "prices" in hotel:
+                for option in hotel["prices"][:3]:
                     site_name = option.get("source")
                     site_price = option.get("price")
                     hotel_info += f"\n - {site_name}: {site_price}"
@@ -161,8 +117,3 @@ def search_hotel(destination:str, check_in:str, check_out:str, adult: int, child
     
     except Exception as e:
         return f"failed to fatch hotel prices : {str(e)}"
-
-
-
-
-

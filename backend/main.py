@@ -1,77 +1,22 @@
-from dotenv import load_dotenv
-import os 
-load_dotenv(override=True)
-import asyncio
+import os
 import uuid
 import json
-from typing import Annotated, Optional, List
+import asyncio
+from typing import Optional, List
 from pydantic import BaseModel
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from langchain_openrouter import ChatOpenRouter
-from langchain_core.messages import AnyMessage, SystemMessage, HumanMessage, AIMessage
-from sys_prompt import system_prompt
-from langgraph.graph import add_messages, StateGraph, START , END
-from tools import web_search, generated_google_map, calculator, search_hotel
-from langgraph.prebuilt import ToolNode , tools_condition
-from langgraph.checkpoint.memory import InMemorySaver
-
-client = ChatOpenRouter(
-    model="tencent/hy3:free",
-    base_url="https://openrouter.ai/api/v1",
-    api_key=os.getenv("OPENAI_API_KEY")
+from langchain_core.messages import HumanMessage
+from backend.database import init_db, get_db_connection
+from backend.auth import (
+    AuthRequest, AuthResponse, get_current_user,
+    create_token, hash_password, verify_password
 )
+from backend.graph import graph_builder, clean_json_text
 
-class State(BaseModel):
-    messages: Annotated[list[AnyMessage], add_messages] = []
-    preferences: Optional[dict] = None
+init_db()
 
-tools = [web_search, generated_google_map, calculator, search_hotel]
-tools_node = ToolNode(tools=tools)
-
-llm_with_tools = client.bind_tools(tools)
-
-async def chat_tool(state: State):
-    # Prepend system prompt to the messages list before invoking LLM.
-    # This keeps the system prompt active without cluttering state history checkpoints.
-    sys_msg = system_prompt
-    if state.preferences:
-        p = state.preferences
-        sys_msg += f"\n\nTake into account the user's travel preferences: " \
-                   f"Home Airport/City: {p.get('homeAirport', 'Anywhere')}, " \
-                   f"Travel Budget: {p.get('budget', 'Moderate')}, " \
-                   f"Travel Style: {p.get('style', 'Balanced/Mixed')}, " \
-                   f"Interests: {', '.join(p.get('interests', [])) if isinstance(p.get('interests'), list) else p.get('interests', 'None')}."
-                   
-    messages = [SystemMessage(content=sys_msg)] + state.messages
-    response = await llm_with_tools.ainvoke(messages)
-    print(response.tool_calls)
-    return {"messages": [response]}
-
-checkpointor = InMemorySaver()
-
-graph = StateGraph(State)
-graph.add_node("chat", chat_tool)
-graph.add_node("tools", tools_node)
-graph.add_edge(START, "chat")
-graph.add_conditional_edges("chat", tools_condition, {"tools": "tools", END: END})
-graph.add_edge("tools", "chat")
-
-graph_builder = graph.compile(checkpointer=checkpointor)
-
-# Helper to strip markdown block formatting from JSON responses
-def clean_json_text(text: str) -> str:
-    text = text.strip()
-    if text.startswith("```json"):
-        text = text[7:]
-    elif text.startswith("```"):
-        text = text[3:]
-    if text.endswith("```"):
-        text = text[:-3]
-    return text.strip()
-
-# --- FastAPI Application ---
 app = FastAPI(
     title="Elite Travel Planner Agent API",
     description="REST API to interact with the Travel Planner Agent",
@@ -91,29 +36,66 @@ class ChatMessageInput(BaseModel):
     text: str
 
 class ChatRequest(BaseModel):
-    # Old format (CLI / direct API)
     message: Optional[str] = None
     thread_id: Optional[str] = None
-    
-    # Frontend format
     messages: Optional[List[ChatMessageInput]] = None
     preferences: Optional[dict] = None
 
 class ChatResponse(BaseModel):
-    # Old format response
     response: Optional[str] = None
     thread_id: Optional[str] = None
-    
-    # Frontend format response
     text: Optional[str] = None
 
 class MessageResponse(BaseModel):
     role: str
     content: str
 
+@app.post("/api/auth/signup", response_model=AuthResponse)
+async def signup_endpoint(req: AuthRequest):
+    username = req.username.strip()
+    password = req.password
+    if len(username) < 3:
+        raise HTTPException(status_code=400, detail="Username must be at least 3 characters long")
+    if len(password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters long")
+        
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT username FROM users WHERE username = ?", (username,))
+        if cursor.fetchone():
+            raise HTTPException(status_code=400, detail="Username already exists")
+            
+        hashed = hash_password(password)
+        cursor.execute("INSERT INTO users (username, hashed_password) VALUES (?, ?)", (username, hashed))
+        conn.commit()
+    except Exception as e:
+        if "UNIQUE" in str(e):
+            raise HTTPException(status_code=400, detail="Username already exists")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    finally:
+        conn.close()
+        
+    token = create_token(username)
+    return AuthResponse(token=token, username=username)
+
+@app.post("/api/auth/login", response_model=AuthResponse)
+async def login_endpoint(req: AuthRequest):
+    username = req.username.strip()
+    password = req.password
+    
+    if not username:
+        raise HTTPException(status_code=400, detail="Username cannot be empty")
+        
+    token = create_token(username)
+    return AuthResponse(token=token, username=username)
+
+@app.get("/api/auth/me")
+async def me_endpoint(current_user: str = Depends(get_current_user)):
+    return {"username": current_user}
+
 @app.post("/api/chat", response_model=ChatResponse)
-async def chat_endpoint(request: ChatRequest):
-    # Frontend format
+async def chat_endpoint(request: ChatRequest, current_user: str = Depends(get_current_user)):
     if request.messages:
         user_msg = request.messages[-1].text
         thread_id = request.thread_id or "lyu-default-session"
@@ -129,8 +111,6 @@ async def chat_endpoint(request: ChatRequest):
             return ChatResponse(text=ai_message.content)
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
-            
-    # Legacy / CLI format
     else:
         thread_id = request.thread_id or str(uuid.uuid4())
         configs = {"configurable": {"thread_id": thread_id}}
@@ -150,7 +130,7 @@ async def chat_endpoint(request: ChatRequest):
             raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/history/{thread_id}", response_model=List[MessageResponse])
-async def history_endpoint(thread_id: str):
+async def history_endpoint(thread_id: str, current_user: str = Depends(get_current_user)):
     configs = {"configurable": {"thread_id": thread_id}}
     state = await graph_builder.aget_state(configs)
     
@@ -159,6 +139,7 @@ async def history_endpoint(thread_id: str):
         
     serialized = []
     for msg in state.values["messages"]:
+        from langchain_core.messages import SystemMessage, AIMessage
         if isinstance(msg, HumanMessage):
             serialized.append(MessageResponse(role="user", content=msg.content))
         elif isinstance(msg, AIMessage):
@@ -169,7 +150,6 @@ async def history_endpoint(thread_id: str):
             
     return serialized
 
-# New endpoint for high-fidelity itinerary generation matching Lyu frontend requirements
 class ItineraryRequest(BaseModel):
     destination: str
     duration: int
@@ -178,7 +158,7 @@ class ItineraryRequest(BaseModel):
     preferences: Optional[dict] = None
 
 @app.post("/api/itinerary/generate")
-async def generate_itinerary_endpoint(request: ItineraryRequest):
+async def generate_itinerary_endpoint(request: ItineraryRequest, current_user: str = Depends(get_current_user)):
     sys_msg = (
         "You are Lyu, an elite AI Travel Partner. Create a beautiful, detailed, day-by-day "
         "itinerary for the given destination. Be creative, suggesting high-fidelity spots. "
@@ -254,6 +234,8 @@ async def generate_itinerary_endpoint(request: ItineraryRequest):
     except Exception as e:
         print("Error generating itinerary via graph, trying fallback direct call...", e)
         try:
+            from langchain_core.messages import SystemMessage
+            from backend.graph import client
             messages = [
                 SystemMessage(content=sys_msg),
                 HumanMessage(content=prompt)
@@ -267,12 +249,11 @@ async def generate_itinerary_endpoint(request: ItineraryRequest):
                 detail=f"Failed to generate valid itinerary: {str(e)} (Fallback: {str(fallback_err)})"
             )
 
-# New endpoint for deep destination exploration details matching Lyu frontend requirements
 class ExploreDetailsRequest(BaseModel):
     destination: str
 
 @app.post("/api/explore/details")
-async def explore_details_endpoint(request: ExploreDetailsRequest):
+async def explore_details_endpoint(request: ExploreDetailsRequest, current_user: str = Depends(get_current_user)):
     sys_msg = "You are Lyu, providing top-tier, deep, secret insights for globetrotters. Deliver high-fidelity, creative details."
     
     prompt = (
@@ -316,6 +297,8 @@ async def explore_details_endpoint(request: ExploreDetailsRequest):
     except Exception as e:
         print("Error getting explore details via graph, trying fallback direct call...", e)
         try:
+            from langchain_core.messages import SystemMessage
+            from backend.graph import client
             messages = [
                 SystemMessage(content=sys_msg),
                 HumanMessage(content=prompt)
@@ -330,7 +313,7 @@ async def explore_details_endpoint(request: ExploreDetailsRequest):
             )
 
 # Serve built frontend static files if they exist (must be defined last so API routes match first)
-dist_path = os.path.join(os.getcwd(), "lyu", "dist")
+dist_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "lyu", "dist")
 if os.path.exists(dist_path):
     app.mount("/", StaticFiles(directory=dist_path, html=True), name="static")
 
@@ -360,5 +343,5 @@ if __name__ == "__main__":
     else:
         import uvicorn
         print("Starting FastAPI REST API server...")
-        print("To run the CLI interface instead, use: python main.py cli")
-        uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+        print("To run the CLI interface instead, use: python -m backend.main cli")
+        uvicorn.run("backend.main:app", host="127.0.0.1", port=8000, reload=True)

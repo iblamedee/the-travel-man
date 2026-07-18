@@ -15,7 +15,7 @@ export default function PlanTripModal({
 }: PlanTripModalProps) {
   const [destination, setDestination] = useState("");
   const [duration, setDuration] = useState(3);
-  const [budget, setBudget] = useState<"budget" | "moderate" | "luxury">(defaultPreferences.budget);
+  const [budget, setBudget] = useState(defaultPreferences.budget);
   const [style, setStyle] = useState<"adventure" | "cyberpunk" | "nature" | "cultural" | "relaxed">(defaultPreferences.style);
   
   const [isLoading, setIsLoading] = useState(false);
@@ -42,11 +42,14 @@ export default function PlanTripModal({
 
     setIsLoading(true);
     setError(null);
-
     try {
+      const token = localStorage.getItem("lyu_token");
       const res = await fetch("/api/itinerary/generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({
           destination: destination.trim(),
           duration: duration,
@@ -174,17 +177,16 @@ export default function PlanTripModal({
 
               <div className="space-y-2">
                 <label className="font-display text-xs font-bold text-on-surface flex items-center gap-1.5">
-                  <CreditCard className="w-3.5 h-3.5" /> Budget Level
+                  <CreditCard className="w-3.5 h-3.5" /> Approx. Budget (INR)
                 </label>
-                <select
-                  className="w-full px-4 py-3 bg-black/30 border border-white/10 rounded-xl text-on-surface text-sm focus:border-brand-primary/40 focus:outline-none"
+                <input
+                  className="w-full px-4 py-3 bg-black/30 border border-white/10 rounded-xl text-on-surface text-sm focus:border-brand-primary/40 focus:ring-1 focus:ring-brand-primary/20 focus:outline-none"
+                  type="text"
                   value={budget}
-                  onChange={(e) => setBudget(e.target.value as any)}
-                >
-                  <option value="budget" className="bg-bg-dark">Budget</option>
-                  <option value="moderate" className="bg-bg-dark">Moderate</option>
-                  <option value="luxury" className="bg-bg-dark">Luxury</option>
-                </select>
+                  onChange={(e) => setBudget(e.target.value)}
+                  placeholder="E.g., 50,000"
+                  required
+                />
               </div>
             </div>
 

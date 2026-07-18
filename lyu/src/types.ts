@@ -11,7 +11,7 @@ export interface Destination {
 
 export interface TravelPreferences {
   homeAirport: string;
-  budget: "budget" | "moderate" | "luxury";
+  budget: string;
   style: "adventure" | "cyberpunk" | "nature" | "cultural" | "relaxed";
   interests: string[];
 }

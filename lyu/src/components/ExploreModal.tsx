@@ -38,9 +38,13 @@ export default function ExploreModal({
 
       // Query Gemini API if not prebaked
       try {
+        const token = localStorage.getItem("lyu_token");
         const res = await fetch("/api/explore/details", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json",
+            ...(token ? { "Authorization": `Bearer ${token}` } : {})
+          },
           body: JSON.stringify({ destination: destinationName })
         });
 

@@ -312,10 +312,23 @@ async def explore_details_endpoint(request: ExploreDetailsRequest, current_user:
                 detail=f"Failed to generate explore details: {str(e)} (Fallback: {str(fallback_err)})"
             )
 
-# Serve built frontend static files if they exist (must be defined last so API routes match first)
+# Serve built frontend static files if they exist
 dist_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "lyu", "dist")
 if os.path.exists(dist_path):
-    app.mount("/", StaticFiles(directory=dist_path, html=True), name="static")
+    app.mount("/assets", StaticFiles(directory=os.path.join(dist_path, "assets")), name="assets")
+    
+    # Catch-all route to serve the React SPA index.html for any non-API routes
+    from fastapi.responses import FileResponse
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        # If the path is an API route that wasn't caught, return a standard 404 instead of index.html
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="API route not found")
+        
+        index_file = os.path.join(dist_path, "index.html")
+        if os.path.exists(index_file):
+            return FileResponse(index_file)
+        raise HTTPException(status_code=404, detail="Frontend not built")
 
 # --- CLI Interface ---
 async def chat(): 

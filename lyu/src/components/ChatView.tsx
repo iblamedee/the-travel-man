@@ -5,21 +5,21 @@ import { ChatMessage, TravelPreferences } from "../types";
 function parseMarkdown(text: string): React.ReactNode[] {
   const lines = text.split("\n");
   const elements: React.ReactNode[] = [];
-  
+
   let inTable = false;
   let tableRows: string[][] = [];
-  
+
   const flushTable = (key: number) => {
     if (tableRows.length === 0) return null;
-    
+
     // Extract headers (first row)
     const headers = tableRows[0];
     // Remaining rows (skipping separator row, which has '---')
     const bodyRows = tableRows.slice(1).filter(row => !row.some(cell => cell.includes("---")));
-    
+
     tableRows = [];
     inTable = false;
-    
+
     return (
       <div key={`table-${key}`} className="overflow-x-auto my-3 rounded-xl border border-white/10 bg-white/[0.02]">
         <table className="min-w-full divide-y divide-white/10 text-xs">
@@ -47,11 +47,11 @@ function parseMarkdown(text: string): React.ReactNode[] {
       </div>
     );
   };
-  
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trim();
-    
+
     // Check if it is a table line
     if (trimmed.startsWith("|") && trimmed.endsWith("|")) {
       inTable = true;
@@ -64,7 +64,7 @@ function parseMarkdown(text: string): React.ReactNode[] {
         if (tableElement) elements.push(tableElement);
       }
     }
-    
+
     // Process normal markdown elements
     if (trimmed.startsWith("### ")) {
       elements.push(
@@ -90,7 +90,7 @@ function parseMarkdown(text: string): React.ReactNode[] {
       );
       continue;
     }
-    
+
     // Unordered lists (handling lines starting with "-", "*", or "•")
     if (trimmed.startsWith("- ") || trimmed.startsWith("* ") || trimmed.startsWith("• ")) {
       const bulletText = trimmed.replace(/^[-*•]\s+/, "");
@@ -113,7 +113,7 @@ function parseMarkdown(text: string): React.ReactNode[] {
       );
       continue;
     }
-    
+
     // Regular paragraphs (blank lines create vertical space)
     if (trimmed === "") {
       elements.push(<div key={i} className="h-2" />);
@@ -125,12 +125,12 @@ function parseMarkdown(text: string): React.ReactNode[] {
       );
     }
   }
-  
+
   if (inTable) {
     const tableElement = flushTable(lines.length);
     if (tableElement) elements.push(tableElement);
   }
-  
+
   return elements;
 }
 
@@ -233,18 +233,18 @@ function parseInlineContent(text: string): React.ReactNode[] {
 function parseInline(text: string): React.ReactNode[] {
   // First, parse bold text
   const boldParts = text.split(/(\*\*.*?\*\*)/g);
-  
+
   return boldParts.map((part, index) => {
     let currentContent: string = part;
     let isBold = false;
-    
+
     if (part.startsWith("**") && part.endsWith("**")) {
       currentContent = part.slice(2, -2);
       isBold = true;
     }
-    
+
     const renderedParts = parseInlineContent(currentContent);
-    
+
     if (isBold) {
       return (
         <strong key={index} className="font-bold text-brand-secondary">
@@ -252,7 +252,7 @@ function parseInline(text: string): React.ReactNode[] {
         </strong>
       );
     }
-    
+
     return <React.Fragment key={index}>{renderedParts}</React.Fragment>;
   });
 }
@@ -313,7 +313,7 @@ export default function ChatView({ preferences }: ChatViewProps) {
       const token = localStorage.getItem("lyu_token");
       const res = await fetch("/api/chat", {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
           ...(token ? { "Authorization": `Bearer ${token}` } : {})
         },
@@ -380,20 +380,18 @@ export default function ChatView({ preferences }: ChatViewProps) {
               className={`flex gap-3 max-w-[85%] ${isAssistant ? "mr-auto" : "ml-auto flex-row-reverse"}`}
             >
               <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                  isAssistant
+                className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isAssistant
                     ? "bg-brand-primary/15 border border-brand-primary/20 text-brand-primary"
                     : "bg-brand-secondary/15 border border-brand-secondary/20 text-brand-secondary"
-                }`}
+                  }`}
               >
                 {isAssistant ? <Bot className="w-4 h-4" /> : <User className="w-4 h-4" />}
               </div>
               <div
-                className={`p-4 rounded-2xl border text-sm leading-relaxed relative ${
-                  isAssistant
+                className={`p-4 rounded-2xl border text-sm leading-relaxed relative ${isAssistant
                     ? "bg-[#1e1e31]/60 border-white/10 text-on-surface"
                     : "bg-brand-primary/10 border-brand-primary/25 text-on-surface rounded-tr-none"
-                }`}
+                  }`}
               >
                 <div className="space-y-1.5">
                   {isAssistant ? parseMarkdown(msg.text) : <div className="whitespace-pre-wrap">{msg.text}</div>}
